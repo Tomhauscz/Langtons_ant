@@ -16,11 +16,28 @@ from Classes.Canvas import Canvas
 CANVAS_WIDTH: int  = 100
 CANVAS_HEIGHT: int = 100
 resolution: int    = 4
+
 grid_width: int    = int(CANVAS_WIDTH / resolution)
 grid_height: int   = int(CANVAS_HEIGHT / resolution)
-grid: list[list[int]] = []
+grid: list[list[int]]  = []
+grid_initialized: bool = False
 
 ANTS_RULES = ""
+
+COLORS = [
+    "#6A6A6A", "#FFFFFF",
+    "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FFA500", "#00FFFF", "#000000", "#000000",
+
+    "#A60000", "#FF0000", "#FF6262", "#202072", "#3914AF", "#6A48D7",
+    "#008500", "#00CC00", "#67E667", "#A68900", "#FFD300", "#FFDE40",
+
+    "#FF4C4C", "#4CFF4C", "#4C4CFF"
+]
+
+ANT_UP      = 0
+ANT_RIGHT   = 1
+ANT_DOWN    = 2
+ANT_LEFT    = 3
 
 class MainWindow(QWidget):
     def __init__(self, ui_file_path):
@@ -134,11 +151,12 @@ def clear_button_clicked():
 
 
 def updateGridSize():
-    global grid, grid_width, grid_height
+    global grid_width, grid_height, grid, grid_initialized
     grid_width = int(CANVAS_WIDTH / resolution)
     grid_height = int(CANVAS_HEIGHT / resolution)
 
     grid = [[0 for _ in range(grid_height)] for _ in range(grid_width)]
+    grid_initialized = True
 
 def show_rules_input_error_popup(error_message: str):
     msg = QMessageBox()
