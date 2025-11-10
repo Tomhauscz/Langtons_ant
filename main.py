@@ -22,6 +22,9 @@ grid_height: int   = int(CANVAS_HEIGHT / resolution)
 grid: list[list[int]]  = []
 grid_initialized: bool = False
 
+ant_x_pos: int = 0
+ant_y_pos: int = 0
+
 ANTS_RULES = ""
 
 COLORS = [
@@ -59,6 +62,7 @@ class MainWindow(QWidget):
 
         # create class variables
         self.rules_input = None
+        self.grid_canvas = None
 
         # Setup all widgets
         self.widgets_setup()
@@ -91,14 +95,15 @@ class MainWindow(QWidget):
             layout = grid_canvas_placeholder.parentWidget().layout()
             index = layout.indexOf(grid_canvas_placeholder)
 
-            grid_canvas = Canvas("#F0F0F0", grid_canvas_placeholder, parent=grid_canvas_placeholder.parentWidget())
-            CANVAS_WIDTH = grid_canvas.width()
-            CANVAS_HEIGHT = grid_canvas.height()
+            self.grid_canvas = Canvas("#F0F0F0", grid_canvas_placeholder, parent=grid_canvas_placeholder.parentWidget())
+            CANVAS_WIDTH = self.grid_canvas.width()
+            CANVAS_HEIGHT = self.grid_canvas.height()
             updateGridSize()
+            self.grid_canvas.setCellSize(resolution)
 
             layout.removeWidget(grid_canvas_placeholder)
             grid_canvas_placeholder.deleteLater()  # delete placeholder
-            layout.insertWidget(index, grid_canvas)
+            layout.insertWidget(index, self.grid_canvas)
 
         if rules_canvas_placeholder:
             layout = rules_canvas_placeholder.parentWidget().layout()
