@@ -2,16 +2,22 @@ import sys
 import re
 
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore import QFile
+from PySide6.QtCore import (
+    QFile,
+    QTimer
+)
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QApplication,
     QWidget,
     QPushButton,
-    QLineEdit,
-    QMessageBox
+    QLineEdit
 )
 
 from Classes.Canvas import Canvas
+from Classes.DialogWindow import WarningDialog
+
+ant_tick_period: int = 1000        # [ms]
 
 CANVAS_WIDTH: int  = 100
 CANVAS_HEIGHT: int = 100
@@ -24,6 +30,7 @@ grid_initialized: bool = False
 
 ant_x_pos: int = 0
 ant_y_pos: int = 0
+ant_moving: bool = False
 
 ANTS_RULES = ""
 
@@ -41,6 +48,8 @@ ANT_UP      = 0
 ANT_RIGHT   = 1
 ANT_DOWN    = 2
 ANT_LEFT    = 3
+
+QGuiApplication.beep = lambda: None
 
 class MainWindow(QWidget):
     def __init__(self, ui_file_path):
@@ -60,8 +69,13 @@ class MainWindow(QWidget):
         # Window title
         self.window.setWindowTitle("Langton's ant")
 
+        # Create timer for ant_loop(), but don't start it yet
+        self.timer = QTimer()
+        self.timer.timeout.connect(ant_loop)
+
         # create class variables
-        self.rules_input = None
+        self.start_button: QPushButton = QPushButton()
+        self.rules_input: QLineEdit = QLineEdit()
         self.grid_canvas = None
 
         # Setup all widgets
@@ -71,9 +85,10 @@ class MainWindow(QWidget):
     def widgets_setup(self):
         # === Get all widgets from Qt designers layouts
         # Buttons
-        start_button = self.window.findChild(QPushButton, "btn_start")
+        self.start_button = self.window.findChild(QPushButton, "btn_start")
         show_rules_button = self.window.findChild(QPushButton, "btn_show_rules")
         clear_button = self.window.findChild(QPushButton, "btn_clear")
+        # Text input (QLineEdit)
         self.rules_input = self.window.findChild(QLineEdit, "rules_input")
 
         # Canvases
@@ -81,8 +96,8 @@ class MainWindow(QWidget):
         rules_canvas_placeholder = self.window.findChild(QWidget, "canvas_rules")
 
         # === Assign clicked signals to functions
-        if start_button:
-            start_button.clicked.connect(self.start_button_clicked)
+        if self.start_button:
+            self.start_button.clicked.connect(self.start_button_clicked)
         if show_rules_button:
             show_rules_button.clicked.connect(self.show_rules_button_clicked)
         if clear_button:
@@ -116,8 +131,20 @@ class MainWindow(QWidget):
             layout.insertWidget(index, rules_canvas)
 
     def start_button_clicked(self):
-        if self.updateRulesInput():
+        global ant_moving
+        if ant_moving:
+            if self.timer.isActive():
+                ant_moving = False
+                self.timer.stop()
+                if self.start_button:
+                    self.start_button.setText("Start")
+
+        elif self.updateRulesInput():
             print("Rules: " + ANTS_RULES)
+            ant_moving = True
+            self.timer.start(ant_tick_period)
+            if self.start_button:
+                self.start_button.setText("Stop")
         pass
 
     def show_rules_button_clicked(self):
@@ -133,12 +160,12 @@ class MainWindow(QWidget):
         input_text = self.rules_input.text()
         if not re.fullmatch(r"^[lLrR]*$", input_text):
             ANTS_RULES = ""
-            show_rules_input_error_popup("Wrong input!! R,L,r,l options available only!\n\nR,r - right\nL,l - left")
+            show_rules_input_warn_popup("Wrong input!! R,L,r,l options available only!\n\nR,r - right\nL,l - left")
             return False
 
         if len(input_text) < 2 or len(input_text) > 20:
             ANTS_RULES = ""
-            show_rules_input_error_popup("Rules length error!!\n\nMinimum 2 rules\nMaximum 20 rules")
+            show_rules_input_warn_popup("Rules length error!!\n\nMinimum 2 rules\nMaximum 20 rules")
             return False
 
         ANTS_RULES = str.upper(input_text)
@@ -149,10 +176,13 @@ class MainWindow(QWidget):
 
 
 # ==== Globally defined functions ====
+def ant_loop():
+    print("Ant loop executed!")
+    pass
+
 def clear_button_clicked():
     print("CLEAR button clicked!")
     pass
-
 
 
 def updateGridSize():
@@ -163,13 +193,22 @@ def updateGridSize():
     grid = [[0 for _ in range(grid_height)] for _ in range(grid_width)]
     grid_initialized = True
 
-def show_rules_input_error_popup(error_message: str):
+def show_rules_input_warn_popup(warn_message: str):
+    # Could be done with QMessageBox, but I do not like the way OS handles it
+    """
     msg = QMessageBox()
     msg.setWindowTitle("Ant's rules input error")
-    msg.setText(error_message)
-    msg.setIcon(QMessageBox.Icon.Critical)
+    msg.setText(warn_message)
+    msg.setIcon(QMessageBox.Icon.Warning)
     msg.setStandardButtons(QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
     ret = msg.exec()  # shows dialog window
+    """
+    warning_dialog = WarningDialog()
+    warning_dialog.setTitle("Ant's rules input warning")
+    warning_dialog.setMessage(warn_message)
+    warning_dialog.exec()
+
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
