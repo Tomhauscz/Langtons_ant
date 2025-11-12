@@ -1,5 +1,7 @@
 import sys
 import re
+from enum import IntEnum
+
 
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import (
@@ -17,7 +19,7 @@ from PySide6.QtWidgets import (
 from Classes.Canvas import Canvas
 from Classes.DialogWindow import WarningDialog
 
-ant_tick_period: int = 1000        # [ms]
+ant_tick_period: int = 1        # [ms]
 
 CANVAS_WIDTH: int  = 100
 CANVAS_HEIGHT: int = 100
@@ -25,11 +27,13 @@ resolution: int    = 4
 
 grid_width: int    = int(CANVAS_WIDTH / resolution)
 grid_height: int   = int(CANVAS_HEIGHT / resolution)
-grid: list[list[int]]  = []
-grid_initialized: bool = False
+grid: list[list[int]] = []
+
+grid_canvas: Canvas
 
 ant_x_pos: int = 0
 ant_y_pos: int = 0
+ant_direction: int = 0
 ant_moving: bool = False
 
 ANTS_RULES = ""
@@ -44,10 +48,11 @@ COLORS = [
     "#FF4C4C", "#4CFF4C", "#4C4CFF"
 ]
 
-ANT_UP      = 0
-ANT_RIGHT   = 1
-ANT_DOWN    = 2
-ANT_LEFT    = 3
+class Directions(IntEnum):
+    ANT_UP      = 0
+    ANT_RIGHT   = 1
+    ANT_DOWN    = 2
+    ANT_LEFT    = 3
 
 QGuiApplication.beep = lambda: None
 
@@ -76,10 +81,13 @@ class MainWindow(QWidget):
         # create class variables
         self.start_button: QPushButton = QPushButton()
         self.rules_input: QLineEdit = QLineEdit()
-        self.grid_canvas = None
 
         # Setup all widgets
         self.widgets_setup()
+
+        # Ant setup
+        global ant_direction
+        ant_direction = Directions.ANT_LEFT
 
 
     def widgets_setup(self):
@@ -105,20 +113,20 @@ class MainWindow(QWidget):
 
         # === Replacing the placeholders with my custom Canvas class
         if grid_canvas_placeholder:
-            global CANVAS_WIDTH, CANVAS_HEIGHT
+            global CANVAS_WIDTH, CANVAS_HEIGHT, grid_canvas
 
             layout = grid_canvas_placeholder.parentWidget().layout()
             index = layout.indexOf(grid_canvas_placeholder)
 
-            self.grid_canvas = Canvas("#F0F0F0", grid_canvas_placeholder, parent=grid_canvas_placeholder.parentWidget())
-            CANVAS_WIDTH = self.grid_canvas.width()
-            CANVAS_HEIGHT = self.grid_canvas.height()
+            grid_canvas = Canvas("#F0F0F0", grid_canvas_placeholder, parent=grid_canvas_placeholder.parentWidget())
+            CANVAS_WIDTH = grid_canvas.width()
+            CANVAS_HEIGHT = grid_canvas.height()
             updateGridSize()
-            self.grid_canvas.setCellSize(resolution)
+            grid_canvas.setCellSize(resolution)
 
             layout.removeWidget(grid_canvas_placeholder)
             grid_canvas_placeholder.deleteLater()  # delete placeholder
-            layout.insertWidget(index, self.grid_canvas)
+            layout.insertWidget(index, grid_canvas)
 
         if rules_canvas_placeholder:
             layout = rules_canvas_placeholder.parentWidget().layout()
@@ -176,22 +184,104 @@ class MainWindow(QWidget):
 
 
 # ==== Globally defined functions ====
+def ant_turn_right():
+    global ant_direction
+    ant_direction += 1      # cruel Python, ant_direction++ would be much easier
+    if ant_direction > Directions.ANT_LEFT:
+        ant_direction = Directions.ANT_UP
+
+def ant_turn_left():
+    global ant_direction
+    ant_direction -= 1
+    if ant_direction < Directions.ANT_UP:
+        ant_direction = Directions.ANT_LEFT
+
+def ant_move_forward():
+    global ant_x_pos, ant_y_pos
+    match ant_direction:
+        case Directions.ANT_UP:
+            ant_y_pos -= 1
+        case Directions.ANT_RIGHT:
+            ant_x_pos += 1
+        case Directions.ANT_DOWN:
+            ant_y_pos += 1
+        case Directions.ANT_LEFT:
+            ant_x_pos -= 1
+        case _:
+            pass
+
+    # grid wrap around
+    if ant_x_pos > grid_width - 1:
+        ant_x_pos = 0
+    elif ant_x_pos < 0:
+        ant_x_pos = grid_width - 1
+
+    if ant_y_pos > grid_height - 1:
+        ant_y_pos = 0
+    elif ant_y_pos < 0:
+        ant_y_pos = grid_height - 1
+
+def reinit_grid():
+    global grid
+    for x in range(grid_width):
+        for y in range(grid_height):
+            grid[x][y] = 0
+
 def ant_loop():
-    print("Ant loop executed!")
+    global grid
+    # Ant's current state
+    ant_state = grid[ant_x_pos][ant_y_pos]
+    # Ant's next direction
+    direction = ANTS_RULES[ant_state]
+
+    # Ant makes turn based on the rule at current grid state
+    if direction == 'R':
+        ant_turn_right()
+    elif direction == 'L':
+        ant_turn_left()
+
+    # Grid state changes based on current state (advance the state by 1 or return to 0 state)
+    if ant_state == len(ANTS_RULES) - 1:
+        grid[ant_x_pos][ant_y_pos] = 0
+    else:
+        grid[ant_x_pos][ant_y_pos] = ant_state + 1
+
+    #print(f"x = {ant_x_pos}, y = {ant_y_pos}, dir = {ant_direction}")
+
+    # Draw the current square
+    color_index = grid[ant_x_pos][ant_y_pos] + 2
+    grid_canvas.addCell(ant_x_pos, ant_y_pos, COLORS[color_index])
+
+    # Ant moves forward
+    ant_move_forward()
     pass
+
+def print_grid_sample():
+    global grid
+    print("Grid sample:")
+    for row in range(20):
+        for col in range(20):
+            grid_value = grid[col + 90][row + 90]
+            print(grid_value, end=" ")
+        print() # Start a new line
+
 
 def clear_button_clicked():
     print("CLEAR button clicked!")
+    print_grid_sample()
     pass
 
 
 def updateGridSize():
-    global grid_width, grid_height, grid, grid_initialized
+    global grid_width, grid_height, grid, ant_x_pos, ant_y_pos
     grid_width = int(CANVAS_WIDTH / resolution)
     grid_height = int(CANVAS_HEIGHT / resolution)
 
+    # create the grid with its proper size
     grid = [[0 for _ in range(grid_height)] for _ in range(grid_width)]
-    grid_initialized = True
+    reinit_grid()
+    ant_x_pos = int(grid_width / 2)
+    ant_y_pos = int(grid_height / 2)
 
 def show_rules_input_warn_popup(warn_message: str):
     # Could be done with QMessageBox, but I do not like the way OS handles it
