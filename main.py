@@ -38,16 +38,22 @@ ant_direction: int = 0
 ant_stopped: bool = True
 
 ANTS_RULES = ""
-
+"""
 COLORS = [
     "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF",
 
-    "#A60000", "#FF0000", "#FF6262", "#202072", "#3914AF", "#6A48D7",
+    "#A60000", "#FFA500", "#FF6262", "#202072", "#3914AF", "#6A48D7",
     "#008500", "#00CC00", "#67E667", "#A68900", "#FFD300", "#FFDE40",
 
     "#FF4C4C", "#4CFF4C", "#4C4CFF"
 ]
-
+"""
+COLORS = [
+"#001f4d", "#002a66", "#003580", "#004099", "#004bb3",
+"#0056cc", "#0061e6", "#006bff", "#0078ff", "#0085ff",
+"#0092ff", "#00a0ff", "#00adff", "#00bbff", "#00c8ff",
+"#00d5e6", "#00e2cc", "#00f0b3", "#00fd99", "#00ff80"
+]
 class Directions(IntEnum):
     ANT_UP      = 0
     ANT_RIGHT   = 1

@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
 from PySide6.QtWidgets import QWidget
-from PySide6.QtGui import QPainter, QBrush, QColor, QPixmap, QImage
-from PySide6.QtCore import QRect, Qt
+from PySide6.QtGui import QPainter, QBrush, QColor, QPixmap, QImage, QPen, QPolygon
+from PySide6.QtCore import QRect, Qt, QPoint
 
 @dataclass
 class Rule:
@@ -58,10 +58,10 @@ class RulesCanvas(QWidget):
         self.Bg_color = _bg_color
         self.rules = []
 
-        self.x_offset = 25
+        self.x_offset = 15
         self.y_offset = 35
         self.rule_rect_size = 50
-        self.rule_rect_spacing = self.rule_rect_size + 25
+        self.rule_rect_spacing = 25
 
         self.right_turn_image = None
         self.left_turn_image = None
@@ -137,11 +137,20 @@ class RulesCanvas(QWidget):
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor(self.Bg_color))
 
-        painter.setPen(Qt.PenStyle.SolidLine)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
         for index, rule_pair in enumerate(self.rules):
             rule_rect_x_offset = self.x_offset
-            rule_rect_y_offset = self.y_offset + index * self.rule_rect_spacing
+            rule_rect_y_offset = self.y_offset + index * (self.rule_rect_size + self.rule_rect_spacing)
+            if index > 9:
+                rule_rect_x_offset = self.x_offset + self.rule_rect_size + 20
+                rule_rect_y_offset = self.y_offset + (19 - index) * (self.rule_rect_size  + self.rule_rect_spacing)
+
+            # draw a square with the given color
+            if index == 0:
+                painter.setPen(QPen(QColor("#FF0000"), 3, Qt.PenStyle.SolidLine))
+            else:
+                painter.setPen(QPen(QColor("#000000"), 1, Qt.PenStyle.SolidLine))
             painter.setBrush(QBrush(QColor(rule_pair.color)))
             painter.drawRect(QRect(rule_rect_x_offset, rule_rect_y_offset, self.rule_rect_size, self.rule_rect_size))
 
@@ -163,5 +172,105 @@ class RulesCanvas(QWidget):
                             left_img
                         )
 
+            # draw arrows pointing to the next rule square
+            if index < 9 and index < (len(self.rules) - 1):
+                arrow_start_point = QPoint(self.x_offset + int(self.rule_rect_size / 2),
+                                           self.y_offset + self.rule_rect_size +
+                                           index * (self.rule_rect_size + self.rule_rect_spacing) + 1)
+                arrow_end_point = QPoint(self.x_offset + int(self.rule_rect_size / 2),
+                                         self.y_offset + self.rule_rect_size + self.rule_rect_spacing +
+                                         index * (self.rule_rect_size + self.rule_rect_spacing) - 2)
+                draw_arrow(painter, arrow_start_point, arrow_end_point, True)
+            elif 9 < index < (len(self.rules) - 1):
+                arrow_start_point = QPoint(self.x_offset + self.rule_rect_size + 20 + int(self.rule_rect_size / 2),
+                                           self.y_offset +
+                                           (19 - index) * (self.rule_rect_size + self.rule_rect_spacing) - 1)
+                arrow_end_point = QPoint(self.x_offset + self.rule_rect_size + 20 + int(self.rule_rect_size / 2),
+                                         self.y_offset - self.rule_rect_spacing +
+                                         (19 - index) * (self.rule_rect_size + self.rule_rect_spacing) + 2)
+                draw_arrow(painter, arrow_start_point, arrow_end_point, False)
+
+        # draw the bottom U-shaped arrow or arrow back to the top
+        pen = QPen(Qt.PenStyle.SolidLine)
+        pen.setWidth(2)
+        painter.setPen(pen)
+        if 1 < len(self.rules) <= 10:
+            u_arrow_bottom_points = [
+                QPoint(self.x_offset + int(self.rule_rect_size / 2),
+                       self.y_offset - self.rule_rect_spacing +
+                       len(self.rules) * (self.rule_rect_size + self.rule_rect_spacing)),
+                QPoint(self.x_offset + int(self.rule_rect_size / 2),
+                       self.y_offset +
+                       len(self.rules) * (self.rule_rect_size + self.rule_rect_spacing)),
+                QPoint(self.x_offset + int(self.rule_rect_size / 2) + self.rule_rect_size + 20,
+                       self.y_offset +
+                       len(self.rules) * (self.rule_rect_size + self.rule_rect_spacing)),
+                QPoint(self.x_offset + int(self.rule_rect_size / 2) + self.rule_rect_size + 20,
+                       self.y_offset - self.rule_rect_spacing),
+                QPoint(self.x_offset + int(self.rule_rect_size / 2),
+                       self.y_offset - self.rule_rect_spacing)
+            ]
+            painter.drawPolyline(QPolygon(u_arrow_bottom_points))
+
+            # draw last segment as regular arrow
+            draw_arrow(painter,
+                       QPoint(self.x_offset + int(self.rule_rect_size / 2), self.y_offset - self.rule_rect_spacing),
+                       QPoint(self.x_offset + int(self.rule_rect_size / 2), self.y_offset),
+                       True)
+        elif len(self.rules) > 10:
+            # --- draw the bottom U-shaped arrow
+            u_arrow_bottom_points = [
+                QPoint(self.x_offset + int(self.rule_rect_size / 2),
+                       self.y_offset - self.rule_rect_spacing +
+                       10 * (self.rule_rect_size + self.rule_rect_spacing)),
+                QPoint(self.x_offset + int(self.rule_rect_size / 2),
+                       self.y_offset +
+                       10 * (self.rule_rect_size + self.rule_rect_spacing)),
+                QPoint(self.x_offset + int(self.rule_rect_size / 2) + self.rule_rect_size + 20,
+                       self.y_offset +
+                       10 * (self.rule_rect_size + self.rule_rect_spacing))
+            ]
+            painter.drawPolyline(QPolygon(u_arrow_bottom_points))
+
+            # draw last segment as regular arrow
+            draw_arrow(painter,
+                       QPoint(self.x_offset + self.rule_rect_size + 20 + int(self.rule_rect_size / 2),
+                              self.y_offset +
+                              10 * (self.rule_rect_size + self.rule_rect_spacing)),
+                       QPoint(self.x_offset + self.rule_rect_size + 20 + int(self.rule_rect_size / 2),
+                              self.y_offset - self.rule_rect_spacing +
+                              10 * (self.rule_rect_size + self.rule_rect_spacing)),
+                              False)
+
+            # --- draw the top U-shaped arrow
+            u_arrow_top_points = [
+                QPoint(self.x_offset + self.rule_rect_size + 20 + int(self.rule_rect_size / 2),
+                       self.y_offset +
+                       (20 - len(self.rules)) * (self.rule_rect_size + self.rule_rect_spacing)),
+                QPoint(self.x_offset + self.rule_rect_size + 20 + int(self.rule_rect_size / 2),
+                       self.y_offset - self.rule_rect_spacing),
+                QPoint(self.x_offset + int(self.rule_rect_size / 2),
+                       self.y_offset - self.rule_rect_spacing)
+            ]
+            painter.drawPolyline(QPolygon(u_arrow_top_points))
+
+            # draw last segment as regular arrow
+            draw_arrow(painter,
+                       QPoint(self.x_offset + int(self.rule_rect_size / 2), self.y_offset - self.rule_rect_spacing),
+                       QPoint(self.x_offset + int(self.rule_rect_size / 2), self.y_offset),
+                       True)
 
 
+
+def draw_arrow(painter: QPainter, p1: QPoint, p2: QPoint, pointing_down: bool):
+        pen = QPen(Qt.PenStyle.SolidLine)
+        pen.setWidth(2)
+        painter.setPen(pen)
+        painter.drawLine(p1, p2)
+
+        # draw the pointing
+        arrow_left_point = QPoint(p2.x() - 4, (p2.y() - 7) if pointing_down else (p2.y() + 7))
+        arrow_right_point = QPoint(p2.x() + 4, (p2.y() - 7) if pointing_down else (p2.y() + 7))
+
+        painter.drawLine(arrow_left_point, p2)
+        painter.drawLine(arrow_right_point, p2)
