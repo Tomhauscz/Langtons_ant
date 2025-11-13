@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QLineEdit
 )
 
-from Classes.Canvas import Canvas
+from Classes.Canvas import GridCanvas, RulesCanvas
 from Classes.DialogWindow import WarningDialog
 
 ant_tick_period: int = 1        # [ms]
@@ -29,7 +29,8 @@ grid_width: int    = int(CANVAS_WIDTH / resolution)
 grid_height: int   = int(CANVAS_HEIGHT / resolution)
 grid: list[list[int]] = []
 
-grid_canvas: Canvas
+grid_canvas: GridCanvas
+rules_canvas: RulesCanvas
 
 ant_x_pos: int = 0
 ant_y_pos: int = 0
@@ -39,7 +40,7 @@ ant_stopped: bool = True
 ANTS_RULES = ""
 
 COLORS = [
-    "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FFA500", "#00FFFF", "#000000", "#000000",
+    "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF",
 
     "#A60000", "#FF0000", "#FF6262", "#202072", "#3914AF", "#6A48D7",
     "#008500", "#00CC00", "#67E667", "#A68900", "#FFD300", "#FFDE40",
@@ -81,6 +82,7 @@ class MainWindow(QWidget):
 
         # create class variables
         self.start_button: QPushButton = QPushButton()
+        self.pause_button: QPushButton = QPushButton()
         self.rules_input: QLineEdit = QLineEdit()
 
         # Setup all widgets
@@ -90,8 +92,8 @@ class MainWindow(QWidget):
         # === Get all widgets from Qt designers layouts
         # Buttons
         self.start_button = self.window.findChild(QPushButton, "btn_start")
+        self.pause_button = self.window.findChild(QPushButton, "btn_pause")
         show_rules_button = self.window.findChild(QPushButton, "btn_show_rules")
-        pause_button = self.window.findChild(QPushButton, "btn_pause")
         # Text input (QLineEdit)
         self.rules_input = self.window.findChild(QLineEdit, "rules_input")
 
@@ -102,10 +104,10 @@ class MainWindow(QWidget):
         # === Assign clicked signals to functions
         if self.start_button:
             self.start_button.clicked.connect(self.start_button_clicked)
+        if self.pause_button:
+            self.pause_button.clicked.connect(self.pause_button_clicked)
         if show_rules_button:
             show_rules_button.clicked.connect(self.show_rules_button_clicked)
-        if pause_button:
-            pause_button.clicked.connect(self.pause_button_clicked)
 
         # === Replacing the placeholders with my custom Canvas class
         if grid_canvas_placeholder:
@@ -114,7 +116,7 @@ class MainWindow(QWidget):
             layout = grid_canvas_placeholder.parentWidget().layout()
             index = layout.indexOf(grid_canvas_placeholder)
 
-            grid_canvas = Canvas("#F0F0F0", grid_canvas_placeholder, parent=grid_canvas_placeholder.parentWidget())
+            grid_canvas = GridCanvas("#F0F0F0", grid_canvas_placeholder, parent=grid_canvas_placeholder.parentWidget())
             CANVAS_WIDTH = grid_canvas.width()
             CANVAS_HEIGHT = grid_canvas.height()
             updateGridSize()
@@ -125,10 +127,12 @@ class MainWindow(QWidget):
             layout.insertWidget(index, grid_canvas)
 
         if rules_canvas_placeholder:
+            global rules_canvas
             layout = rules_canvas_placeholder.parentWidget().layout()
             index = layout.indexOf(rules_canvas_placeholder)
 
-            rules_canvas = Canvas("#F0F0F0", rules_canvas_placeholder, parent=rules_canvas_placeholder.parentWidget())
+            rules_canvas = RulesCanvas("#F0F0F0", rules_canvas_placeholder, parent=rules_canvas_placeholder.parentWidget())
+            rules_canvas.setLeftAndRightImages("ui/right_turn_sign.png", "ui/left_turn_sign.png")
 
             layout.removeWidget(rules_canvas_placeholder)
             rules_canvas_placeholder.deleteLater()  # delete placeholder
@@ -148,20 +152,25 @@ class MainWindow(QWidget):
                 if self.start_button:
                     self.start_button.setText("Stop")
 
-        elif self.timer.isActive():
+        else:
             ant_stopped = True
             self.timer.stop()
             if self.start_button:
                 self.start_button.setText("Start")
+            if self.pause_button:
+                self.pause_button.setText("Pause")
 
     def pause_button_clicked(self):
         if self.timer.isActive():
             self.timer.stop()
+            self.pause_button.setText("Play")
         elif not ant_stopped:
             self.timer.start(ant_tick_period)
+            self.pause_button.setText("Pause")
 
     def show_rules_button_clicked(self):
-        print("SHOW RULES button clicked!")
+        global rules_canvas
+        rules_canvas.addRules(ANTS_RULES, COLORS)
         pass
 
     def updateRulesInput(self) -> bool:
