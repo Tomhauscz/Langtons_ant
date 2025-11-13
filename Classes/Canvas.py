@@ -32,6 +32,9 @@ class Canvas(QWidget):
             del self.cells[(x, y)]
             self.update()
 
+    def clearAllCells(self):
+        self.cells.clear()
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor(self.Bg_color))

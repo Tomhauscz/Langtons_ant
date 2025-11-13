@@ -34,12 +34,11 @@ grid_canvas: Canvas
 ant_x_pos: int = 0
 ant_y_pos: int = 0
 ant_direction: int = 0
-ant_moving: bool = False
+ant_stopped: bool = True
 
 ANTS_RULES = ""
 
 COLORS = [
-    "#6A6A6A", "#FFFFFF",
     "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FFA500", "#00FFFF", "#000000", "#000000",
 
     "#A60000", "#FF0000", "#FF6262", "#202072", "#3914AF", "#6A48D7",
@@ -71,8 +70,10 @@ class MainWindow(QWidget):
         if not self.window:
             raise RuntimeError("Failed to load the UI file.")
 
-        # Window title
+        # Window title and fix resizing
         self.window.setWindowTitle("Langton's ant")
+        self.window.setFixedSize(self.window.size())
+
 
         # Create timer for ant_loop(), but don't start it yet
         self.timer = QTimer()
@@ -85,17 +86,12 @@ class MainWindow(QWidget):
         # Setup all widgets
         self.widgets_setup()
 
-        # Ant setup
-        global ant_direction
-        ant_direction = Directions.ANT_LEFT
-
-
     def widgets_setup(self):
         # === Get all widgets from Qt designers layouts
         # Buttons
         self.start_button = self.window.findChild(QPushButton, "btn_start")
         show_rules_button = self.window.findChild(QPushButton, "btn_show_rules")
-        clear_button = self.window.findChild(QPushButton, "btn_clear")
+        pause_button = self.window.findChild(QPushButton, "btn_pause")
         # Text input (QLineEdit)
         self.rules_input = self.window.findChild(QLineEdit, "rules_input")
 
@@ -108,8 +104,8 @@ class MainWindow(QWidget):
             self.start_button.clicked.connect(self.start_button_clicked)
         if show_rules_button:
             show_rules_button.clicked.connect(self.show_rules_button_clicked)
-        if clear_button:
-            clear_button.clicked.connect(clear_button_clicked)
+        if pause_button:
+            pause_button.clicked.connect(self.pause_button_clicked)
 
         # === Replacing the placeholders with my custom Canvas class
         if grid_canvas_placeholder:
@@ -139,21 +135,30 @@ class MainWindow(QWidget):
             layout.insertWidget(index, rules_canvas)
 
     def start_button_clicked(self):
-        global ant_moving
-        if ant_moving:
-            if self.timer.isActive():
-                ant_moving = False
-                self.timer.stop()
-                if self.start_button:
-                    self.start_button.setText("Start")
+        global ant_stopped
 
-        elif self.updateRulesInput():
-            print("Rules: " + ANTS_RULES)
-            ant_moving = True
-            self.timer.start(ant_tick_period)
+        if ant_stopped:
+            reinit_ant()                    # reinitiates the ant
+            grid_canvas.clearAllCells()     # clear the canvas also
+
+            if self.updateRulesInput():
+                #print("Rules: " + ANTS_RULES)
+                ant_stopped = False
+                self.timer.start(ant_tick_period)
+                if self.start_button:
+                    self.start_button.setText("Stop")
+
+        elif self.timer.isActive():
+            ant_stopped = True
+            self.timer.stop()
             if self.start_button:
-                self.start_button.setText("Stop")
-        pass
+                self.start_button.setText("Start")
+
+    def pause_button_clicked(self):
+        if self.timer.isActive():
+            self.timer.stop()
+        elif not ant_stopped:
+            self.timer.start(ant_tick_period)
 
     def show_rules_button_clicked(self):
         print("SHOW RULES button clicked!")
@@ -221,8 +226,15 @@ def ant_move_forward():
     elif ant_y_pos < 0:
         ant_y_pos = grid_height - 1
 
-def reinit_grid():
-    global grid
+def reinit_ant():
+    global grid, ant_x_pos, ant_y_pos, ant_direction
+
+    # reinit starting position
+    ant_x_pos = int(grid_width / 2)
+    ant_y_pos = int(grid_height / 2)
+    ant_direction = Directions.ANT_DOWN
+
+    # reinit grid
     for x in range(grid_width):
         for y in range(grid_height):
             grid[x][y] = 0
@@ -249,39 +261,21 @@ def ant_loop():
     #print(f"x = {ant_x_pos}, y = {ant_y_pos}, dir = {ant_direction}")
 
     # Draw the current square
-    color_index = grid[ant_x_pos][ant_y_pos] + 2
+    color_index = grid[ant_x_pos][ant_y_pos]
     grid_canvas.addCell(ant_x_pos, ant_y_pos, COLORS[color_index])
 
     # Ant moves forward
     ant_move_forward()
     pass
 
-def print_grid_sample():
-    global grid
-    print("Grid sample:")
-    for row in range(20):
-        for col in range(20):
-            grid_value = grid[col + 90][row + 90]
-            print(grid_value, end=" ")
-        print() # Start a new line
-
-
-def clear_button_clicked():
-    print("CLEAR button clicked!")
-    print_grid_sample()
-    pass
-
 
 def updateGridSize():
-    global grid_width, grid_height, grid, ant_x_pos, ant_y_pos
+    global grid_width, grid_height, grid
     grid_width = int(CANVAS_WIDTH / resolution)
     grid_height = int(CANVAS_HEIGHT / resolution)
 
     # create the grid with its proper size
     grid = [[0 for _ in range(grid_height)] for _ in range(grid_width)]
-    reinit_grid()
-    ant_x_pos = int(grid_width / 2)
-    ant_y_pos = int(grid_height / 2)
 
 def show_rules_input_warn_popup(warn_message: str):
     # Could be done with QMessageBox, but I do not like the way OS handles it
