@@ -148,7 +148,7 @@ class RulesCanvas(QWidget):
 
             # draw a square with the given color
             if index == 0:
-                painter.setPen(QPen(QColor("#FF0000"), 3, Qt.PenStyle.SolidLine))
+                painter.setPen(QPen(QColor("#FF0000"), 2, Qt.PenStyle.SolidLine))
             else:
                 painter.setPen(QPen(QColor("#000000"), 1, Qt.PenStyle.SolidLine))
             painter.setBrush(QBrush(QColor(rule_pair.color)))
@@ -177,6 +177,8 @@ class RulesCanvas(QWidget):
                 arrow_start_point = QPoint(self.x_offset + int(self.rule_rect_size / 2),
                                            self.y_offset + self.rule_rect_size +
                                            index * (self.rule_rect_size + self.rule_rect_spacing) + 1)
+                if index == 0:
+                    arrow_start_point.setY(arrow_start_point.y() + 1)
                 arrow_end_point = QPoint(self.x_offset + int(self.rule_rect_size / 2),
                                          self.y_offset + self.rule_rect_size + self.rule_rect_spacing +
                                          index * (self.rule_rect_size + self.rule_rect_spacing) - 2)
@@ -197,7 +199,7 @@ class RulesCanvas(QWidget):
         if 1 < len(self.rules) <= 10:
             u_arrow_bottom_points = [
                 QPoint(self.x_offset + int(self.rule_rect_size / 2),
-                       self.y_offset - self.rule_rect_spacing +
+                       self.y_offset - self.rule_rect_spacing + 1 +
                        len(self.rules) * (self.rule_rect_size + self.rule_rect_spacing)),
                 QPoint(self.x_offset + int(self.rule_rect_size / 2),
                        self.y_offset +
@@ -208,26 +210,26 @@ class RulesCanvas(QWidget):
                 QPoint(self.x_offset + int(self.rule_rect_size / 2) + self.rule_rect_size + 20,
                        self.y_offset - self.rule_rect_spacing),
                 QPoint(self.x_offset + int(self.rule_rect_size / 2),
-                       self.y_offset - self.rule_rect_spacing)
+                       self.y_offset - self.rule_rect_spacing),
+                QPoint(self.x_offset + int(self.rule_rect_size / 2),
+                       self.y_offset - self.rule_rect_spacing + 10)
             ]
             painter.drawPolyline(QPolygon(u_arrow_bottom_points))
 
-            # draw last segment as regular arrow
-            draw_arrow(painter,
-                       QPoint(self.x_offset + int(self.rule_rect_size / 2), self.y_offset - self.rule_rect_spacing),
-                       QPoint(self.x_offset + int(self.rule_rect_size / 2), self.y_offset),
-                       True)
         elif len(self.rules) > 10:
             # --- draw the bottom U-shaped arrow
             u_arrow_bottom_points = [
                 QPoint(self.x_offset + int(self.rule_rect_size / 2),
-                       self.y_offset - self.rule_rect_spacing +
+                       self.y_offset - self.rule_rect_spacing + 1 +
                        10 * (self.rule_rect_size + self.rule_rect_spacing)),
                 QPoint(self.x_offset + int(self.rule_rect_size / 2),
                        self.y_offset +
                        10 * (self.rule_rect_size + self.rule_rect_spacing)),
                 QPoint(self.x_offset + int(self.rule_rect_size / 2) + self.rule_rect_size + 20,
                        self.y_offset +
+                       10 * (self.rule_rect_size + self.rule_rect_spacing)),
+                QPoint(self.x_offset + int(self.rule_rect_size / 2) + self.rule_rect_size + 20,
+                       self.y_offset - 10 +
                        10 * (self.rule_rect_size + self.rule_rect_spacing))
             ]
             painter.drawPolyline(QPolygon(u_arrow_bottom_points))
@@ -235,29 +237,32 @@ class RulesCanvas(QWidget):
             # draw last segment as regular arrow
             draw_arrow(painter,
                        QPoint(self.x_offset + self.rule_rect_size + 20 + int(self.rule_rect_size / 2),
-                              self.y_offset +
+                              self.y_offset - 10 +
                               10 * (self.rule_rect_size + self.rule_rect_spacing)),
                        QPoint(self.x_offset + self.rule_rect_size + 20 + int(self.rule_rect_size / 2),
-                              self.y_offset - self.rule_rect_spacing +
+                              self.y_offset - self.rule_rect_spacing + 2 +
                               10 * (self.rule_rect_size + self.rule_rect_spacing)),
                               False)
 
             # --- draw the top U-shaped arrow
             u_arrow_top_points = [
                 QPoint(self.x_offset + self.rule_rect_size + 20 + int(self.rule_rect_size / 2),
-                       self.y_offset +
+                       self.y_offset - 1 +
                        (20 - len(self.rules)) * (self.rule_rect_size + self.rule_rect_spacing)),
                 QPoint(self.x_offset + self.rule_rect_size + 20 + int(self.rule_rect_size / 2),
                        self.y_offset - self.rule_rect_spacing),
                 QPoint(self.x_offset + int(self.rule_rect_size / 2),
-                       self.y_offset - self.rule_rect_spacing)
+                       self.y_offset - self.rule_rect_spacing),
+                QPoint(self.x_offset + int(self.rule_rect_size / 2),
+                       self.y_offset - self.rule_rect_spacing + 10)
             ]
             painter.drawPolyline(QPolygon(u_arrow_top_points))
 
-            # draw last segment as regular arrow
+        # draw last segment as regular arrow (same for both conditions)
+        if len(self.rules) > 1:
             draw_arrow(painter,
-                       QPoint(self.x_offset + int(self.rule_rect_size / 2), self.y_offset - self.rule_rect_spacing),
-                       QPoint(self.x_offset + int(self.rule_rect_size / 2), self.y_offset),
+                       QPoint(self.x_offset + int(self.rule_rect_size / 2), self.y_offset - self.rule_rect_spacing + 10),
+                       QPoint(self.x_offset + int(self.rule_rect_size / 2), self.y_offset - 2),
                        True)
 
 

@@ -37,6 +37,7 @@ ant_y_pos: int = 0
 ant_direction: int = 0
 ant_stopped: bool = True
 
+#RLLRLLRRRLLRLLRL
 ANTS_RULES = ""
 """
 COLORS = [
@@ -145,11 +146,13 @@ class MainWindow(QWidget):
             layout.insertWidget(index, rules_canvas)
 
     def start_button_clicked(self):
-        global ant_stopped
+        global ant_stopped, COLORS
 
         if ant_stopped:
             reinit_ant()                    # reinitiates the ant
             grid_canvas.clearAllCells()     # clear the canvas also
+            COLORS.clear()
+            COLORS = color_gradient("#00FF00", "#0000FF", 20)
 
             if self.updateRulesInput():
                 #print("Rules: " + ANTS_RULES)
@@ -204,6 +207,23 @@ class MainWindow(QWidget):
 
 
 # ==== Globally defined functions ====
+def color_gradient(color_start_hex: str, color_end_hex: str, steps: int) -> list[str]:
+    c_start = tuple(int(color_start_hex[i:i+2], 16) for i in (1, 3, 5))
+    c_end = tuple(int(color_end_hex[i:i+2], 16) for i in (1, 3, 5))
+
+    colors: list[str] = []
+    for i in range(steps):
+        t = i / (steps - 1)
+        r = lin_interpolation(c_start[0], c_end[0], t)
+        g = lin_interpolation(c_start[1], c_end[1], t)
+        b = lin_interpolation(c_start[2], c_end[2], t)
+        colors.append(f"#{r:02X}{g:02X}{b:02X}")
+
+    return colors
+
+def lin_interpolation(a, b, t):
+    return int(a + (b - a) * t)
+
 def ant_turn_right():
     global ant_direction
     ant_direction += 1      # cruel Python, ant_direction++ would be much easier
