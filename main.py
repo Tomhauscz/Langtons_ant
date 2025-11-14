@@ -13,7 +13,8 @@ from PySide6.QtWidgets import (
     QApplication,
     QWidget,
     QPushButton,
-    QLineEdit
+    QLineEdit,
+    QLabel
 )
 
 from Classes.Canvas import GridCanvas, RulesCanvas
@@ -29,6 +30,8 @@ grid_width: int    = int(CANVAS_WIDTH / resolution)
 grid_height: int   = int(CANVAS_HEIGHT / resolution)
 grid: list[list[int]] = []
 
+# -- global widgets for easier access
+steps_count_label: QLabel
 grid_canvas: GridCanvas
 rules_canvas: RulesCanvas
 
@@ -36,6 +39,7 @@ ant_x_pos: int = 0
 ant_y_pos: int = 0
 ant_direction: int = 0
 ant_stopped: bool = True
+ant_steps: int = 0
 
 #RLLRLLRRRLLRLLRL
 ANTS_RULES = ""
@@ -60,8 +64,6 @@ class Directions(IntEnum):
     ANT_RIGHT   = 1
     ANT_DOWN    = 2
     ANT_LEFT    = 3
-
-QGuiApplication.beep = lambda: None
 
 class MainWindow(QWidget):
     def __init__(self, ui_file_path):
@@ -96,13 +98,18 @@ class MainWindow(QWidget):
         self.widgets_setup()
 
     def widgets_setup(self):
+        global steps_count_label
+
         # === Get all widgets from Qt designers layouts
         # Buttons
         self.start_button = self.window.findChild(QPushButton, "btn_start")
         self.pause_button = self.window.findChild(QPushButton, "btn_pause")
-        show_rules_button = self.window.findChild(QPushButton, "btn_show_rules")
+
         # Text input (QLineEdit)
         self.rules_input = self.window.findChild(QLineEdit, "rules_input")
+
+        # Label
+        steps_count_label = self.window.findChild(QLabel, "label_ant_steps_count")
 
         # Canvases
         grid_canvas_placeholder = self.window.findChild(QWidget, "canvas_grid")
@@ -113,8 +120,10 @@ class MainWindow(QWidget):
             self.start_button.clicked.connect(self.start_button_clicked)
         if self.pause_button:
             self.pause_button.clicked.connect(self.pause_button_clicked)
-        if show_rules_button:
-            show_rules_button.clicked.connect(self.show_rules_button_clicked)
+
+        # === Assign initial text to label
+        if steps_count_label:
+            steps_count_label.setText("0")
 
         # === Replacing the placeholders with my custom Canvas class
         if grid_canvas_placeholder:
@@ -158,6 +167,7 @@ class MainWindow(QWidget):
                 #print("Rules: " + ANTS_RULES)
                 ant_stopped = False
                 self.timer.start(ant_tick_period)
+                rules_canvas.addRules(ANTS_RULES, COLORS) # show rules
                 if self.start_button:
                     self.start_button.setText("Stop")
 
@@ -176,11 +186,6 @@ class MainWindow(QWidget):
         elif not ant_stopped:
             self.timer.start(ant_tick_period)
             self.pause_button.setText("Pause")
-
-    def show_rules_button_clicked(self):
-        global rules_canvas
-        rules_canvas.addRules(ANTS_RULES, COLORS)
-        pass
 
     def updateRulesInput(self) -> bool:
         global ANTS_RULES
@@ -262,12 +267,13 @@ def ant_move_forward():
         ant_y_pos = grid_height - 1
 
 def reinit_ant():
-    global grid, ant_x_pos, ant_y_pos, ant_direction
+    global grid, ant_x_pos, ant_y_pos, ant_direction, ant_steps
 
     # reinit starting position
     ant_x_pos = int(grid_width / 2)
     ant_y_pos = int(grid_height / 2)
     ant_direction = Directions.ANT_DOWN
+    ant_steps = 0
 
     # reinit grid
     for x in range(grid_width):
@@ -275,7 +281,7 @@ def reinit_ant():
             grid[x][y] = 0
 
 def ant_loop():
-    global grid
+    global grid, ant_steps
     # Ant's current state
     ant_state = grid[ant_x_pos][ant_y_pos]
     # Ant's next direction
@@ -301,6 +307,10 @@ def ant_loop():
 
     # Ant moves forward
     ant_move_forward()
+
+    # Advance steps
+    ant_steps += 1
+    steps_count_label.setText(str(ant_steps))
     pass
 
 
