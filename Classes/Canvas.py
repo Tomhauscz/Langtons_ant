@@ -32,6 +32,8 @@ class GridCanvas(QWidget):
     def addCell(self, x: int, y: int, color: str):
         # adding or updating existing cell
         self.cells[(x, y)] = color
+
+    def repaint_grid(self):
         self.update()
 
     def clearCell(self, x: int, y: int):
@@ -41,6 +43,7 @@ class GridCanvas(QWidget):
 
     def clearAllCells(self):
         self.cells.clear()
+        self.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)

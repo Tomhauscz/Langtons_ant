@@ -14,13 +14,16 @@ from PySide6.QtWidgets import (
     QWidget,
     QPushButton,
     QLineEdit,
-    QLabel
+    QLabel,
+    QComboBox
 )
 
 from Classes.Canvas import GridCanvas, RulesCanvas
 from Classes.DialogWindow import WarningDialog
 
-ant_tick_period: int = 1        # [ms]
+ant_tick_period: int = 1            # [ms]
+ant_repaint_grid_period: int = 20   # [ms]
+ant_moves_per_tick: int = 1
 
 CANVAS_WIDTH: int  = 100
 CANVAS_HEIGHT: int = 100
@@ -35,13 +38,15 @@ steps_count_label: QLabel
 grid_canvas: GridCanvas
 rules_canvas: RulesCanvas
 
-ant_x_pos: int = 0
+
 ant_y_pos: int = 0
+ant_x_pos: int = 0
 ant_direction: int = 0
 ant_stopped: bool = True
 ant_steps: int = 0
 
 #RLLRLLRRRLLRLLRL
+#RLLLLRRRLLL
 ANTS_RULES = ""
 """
 COLORS = [
@@ -85,14 +90,20 @@ class MainWindow(QWidget):
         self.window.setFixedSize(self.window.size())
 
 
-        # Create timer for ant_loop(), but don't start it yet
-        self.timer = QTimer()
-        self.timer.timeout.connect(ant_loop)
+        # Create timer for ant_loop() and ant_repaint_grid(), but don't start them yet
+        self.ant_loop_timer = QTimer()
+        self.ant_loop_timer.setInterval(ant_tick_period)
+        self.ant_loop_timer.timeout.connect(ant_loop)
+        self.ant_repaint_grid_timer = QTimer()
+        self.ant_repaint_grid_timer.setInterval(ant_repaint_grid_period)
+        self.ant_repaint_grid_timer.timeout.connect(ant_repaint_grid)
+
 
         # create class variables
         self.start_button: QPushButton = QPushButton()
         self.pause_button: QPushButton = QPushButton()
         self.rules_input: QLineEdit = QLineEdit()
+        self.speed_combo_box: QComboBox = QComboBox()
 
         # Setup all widgets
         self.widgets_setup()
@@ -111,6 +122,9 @@ class MainWindow(QWidget):
         # Label
         steps_count_label = self.window.findChild(QLabel, "label_ant_steps_count")
 
+        # Combo Box
+        self.speed_combo_box = self.window.findChild(QComboBox, "speed_combo_box")
+
         # Canvases
         grid_canvas_placeholder = self.window.findChild(QWidget, "canvas_grid")
         rules_canvas_placeholder = self.window.findChild(QWidget, "canvas_rules")
@@ -124,6 +138,21 @@ class MainWindow(QWidget):
         # === Assign initial text to label
         if steps_count_label:
             steps_count_label.setText("0")
+
+        # === Assign speed combo box list items
+        if self.speed_combo_box:
+            self.speed_combo_box.addItem("1x", 1)
+            self.speed_combo_box.addItem("2x", 2)
+            self.speed_combo_box.addItem("5x", 5)
+            self.speed_combo_box.addItem("10x", 10)
+            self.speed_combo_box.addItem("20x", 20)
+            self.speed_combo_box.addItem("50x", 50)
+            self.speed_combo_box.addItem("100x", 100)
+            self.speed_combo_box.addItem("200x", 200)
+            self.speed_combo_box.addItem("500x", 500)
+            self.speed_combo_box.addItem("1000x", 1000)
+
+            self.speed_combo_box.currentIndexChanged.connect(self.speed_combo_box_changed)
 
         # === Replacing the placeholders with my custom Canvas class
         if grid_canvas_placeholder:
@@ -166,26 +195,35 @@ class MainWindow(QWidget):
             if self.updateRulesInput():
                 #print("Rules: " + ANTS_RULES)
                 ant_stopped = False
-                self.timer.start(ant_tick_period)
+                self.ant_loop_timer.start()
+                self.ant_repaint_grid_timer.start()
                 rules_canvas.addRules(ANTS_RULES, COLORS) # show rules
                 if self.start_button:
                     self.start_button.setText("Stop")
 
         else:
             ant_stopped = True
-            self.timer.stop()
+            self.ant_loop_timer.stop()
+            self.ant_repaint_grid_timer.stop()
             if self.start_button:
                 self.start_button.setText("Start")
             if self.pause_button:
                 self.pause_button.setText("Pause")
 
     def pause_button_clicked(self):
-        if self.timer.isActive():
-            self.timer.stop()
+        if self.ant_loop_timer.isActive():
+            self.ant_loop_timer.stop()
+            self.ant_repaint_grid_timer.stop()
             self.pause_button.setText("Play")
         elif not ant_stopped:
-            self.timer.start(ant_tick_period)
+            self.ant_loop_timer.start()
+            self.ant_repaint_grid_timer.start()
             self.pause_button.setText("Pause")
+
+    def speed_combo_box_changed(self):
+        global ant_moves_per_tick
+        speed = self.speed_combo_box.currentData()
+        ant_moves_per_tick = speed
 
     def updateRulesInput(self) -> bool:
         global ANTS_RULES
@@ -281,38 +319,42 @@ def reinit_ant():
             grid[x][y] = 0
 
 def ant_loop():
-    global grid, ant_steps
-    # Ant's current state
-    ant_state = grid[ant_x_pos][ant_y_pos]
-    # Ant's next direction
-    direction = ANTS_RULES[ant_state]
+    global ant_moves_per_tick, grid, ant_steps
 
-    # Ant makes turn based on the rule at current grid state
-    if direction == 'R':
-        ant_turn_right()
-    elif direction == 'L':
-        ant_turn_left()
+    for _ in range(ant_moves_per_tick):
+        # Ant's current state
+        ant_state = grid[ant_x_pos][ant_y_pos]
+        # Ant's next direction
+        direction = ANTS_RULES[ant_state]
 
-    # Grid state changes based on current state (advance the state by 1 or return to 0 state)
-    if ant_state == len(ANTS_RULES) - 1:
-        grid[ant_x_pos][ant_y_pos] = 0
-    else:
-        grid[ant_x_pos][ant_y_pos] = ant_state + 1
+        # Ant makes turn based on the rule at current grid state
+        if direction == 'R':
+            ant_turn_right()
+        elif direction == 'L':
+            ant_turn_left()
 
-    #print(f"x = {ant_x_pos}, y = {ant_y_pos}, dir = {ant_direction}")
+        # Grid state changes based on current state (advance the state by 1 or return to 0 state)
+        if ant_state == len(ANTS_RULES) - 1:
+            grid[ant_x_pos][ant_y_pos] = 0
+        else:
+            grid[ant_x_pos][ant_y_pos] = ant_state + 1
 
-    # Draw the current square
-    color_index = grid[ant_x_pos][ant_y_pos]
-    grid_canvas.addCell(ant_x_pos, ant_y_pos, COLORS[color_index])
+        #print(f"x = {ant_x_pos}, y = {ant_y_pos}, dir = {ant_direction}")
 
-    # Ant moves forward
-    ant_move_forward()
+        # Draw the current square
+        color_index = grid[ant_x_pos][ant_y_pos]
+        grid_canvas.addCell(ant_x_pos, ant_y_pos, COLORS[color_index])
+
+        # Ant moves forward
+        ant_move_forward()
 
     # Advance steps
-    ant_steps += 1
+    ant_steps += ant_moves_per_tick
     steps_count_label.setText(str(ant_steps))
     pass
 
+def ant_repaint_grid():
+    grid_canvas.repaint_grid()
 
 def updateGridSize():
     global grid_width, grid_height, grid
