@@ -8,7 +8,7 @@ from PySide6.QtCore import (
     QFile,
     QTimer
 )
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QApplication,
     QWidget,
@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 
 from Classes.Canvas import GridCanvas, RulesCanvas
 from Classes.DialogWindow import WarningDialog
+from Classes.ColorPicker import ColorPicker
 
 ant_tick_period: int = 1            # [ms]
 ant_repaint_grid_period: int = 20   # [ms]
@@ -64,6 +65,10 @@ COLORS = [
 "#0092ff", "#00a0ff", "#00adff", "#00bbff", "#00c8ff",
 "#00d5e6", "#00e2cc", "#00f0b3", "#00fd99", "#00ff80"
 ]
+
+gradient_starting_color: str = "#00FF00"
+gradient_ending_color: str = "#0000FF"
+
 class Directions(IntEnum):
     ANT_UP      = 0
     ANT_RIGHT   = 1
@@ -102,6 +107,8 @@ class MainWindow(QWidget):
         # create class variables
         self.start_button: QPushButton = QPushButton()
         self.pause_button: QPushButton = QPushButton()
+        self.grad_start_button_clr_picker = None
+        self.grad_end_button_clr_picker = None
         self.rules_input: QLineEdit = QLineEdit()
         self.speed_combo_box: QComboBox = QComboBox()
 
@@ -115,6 +122,8 @@ class MainWindow(QWidget):
         # Buttons
         self.start_button = self.window.findChild(QPushButton, "btn_start")
         self.pause_button = self.window.findChild(QPushButton, "btn_pause")
+        grad_start_col_btn_placeholder = self.window.findChild(QPushButton, "start_color_button")
+        grad_end_col_btn_placeholder = self.window.findChild(QPushButton, "end_color_button")
 
         # Text input (QLineEdit)
         self.rules_input = self.window.findChild(QLineEdit, "rules_input")
@@ -134,6 +143,7 @@ class MainWindow(QWidget):
             self.start_button.clicked.connect(self.start_button_clicked)
         if self.pause_button:
             self.pause_button.clicked.connect(self.pause_button_clicked)
+            self.pause_button.setEnabled(False)
 
         # === Assign initial text to label
         if steps_count_label:
@@ -156,16 +166,22 @@ class MainWindow(QWidget):
 
         # === Replacing the placeholders with my custom Canvas class
         if grid_canvas_placeholder:
-            global CANVAS_WIDTH, CANVAS_HEIGHT, grid_canvas
+            global CANVAS_WIDTH, CANVAS_HEIGHT, grid_canvas, COLORS
 
             layout = grid_canvas_placeholder.parentWidget().layout()
             index = layout.indexOf(grid_canvas_placeholder)
 
-            grid_canvas = GridCanvas("#F0F0F0", grid_canvas_placeholder, parent=grid_canvas_placeholder.parentWidget())
+            grid_canvas = GridCanvas(
+                "#F0F0F0", grid_canvas_placeholder, parent=grid_canvas_placeholder.parentWidget())
             CANVAS_WIDTH = grid_canvas.width()
             CANVAS_HEIGHT = grid_canvas.height()
             updateGridSize()
             grid_canvas.setCellSize(resolution)
+
+            # update COLORS
+            COLORS.clear()
+            COLORS = color_gradient(gradient_starting_color, gradient_ending_color, 20)
+            grid_canvas.setColors(COLORS)
 
             layout.removeWidget(grid_canvas_placeholder)
             grid_canvas_placeholder.deleteLater()  # delete placeholder
@@ -176,21 +192,56 @@ class MainWindow(QWidget):
             layout = rules_canvas_placeholder.parentWidget().layout()
             index = layout.indexOf(rules_canvas_placeholder)
 
-            rules_canvas = RulesCanvas("#F0F0F0", rules_canvas_placeholder, parent=rules_canvas_placeholder.parentWidget())
+            rules_canvas = RulesCanvas(
+                "#F0F0F0", rules_canvas_placeholder, parent=rules_canvas_placeholder.parentWidget())
             rules_canvas.setLeftAndRightImages("ui/right_turn_sign.png", "ui/left_turn_sign.png")
 
             layout.removeWidget(rules_canvas_placeholder)
             rules_canvas_placeholder.deleteLater()  # delete placeholder
             layout.insertWidget(index, rules_canvas)
 
+        if grad_start_col_btn_placeholder:
+            layout = grad_start_col_btn_placeholder.parentWidget().layout()
+            index = layout.indexOf(grad_start_col_btn_placeholder)
+
+            self.grad_start_button_clr_picker = ColorPicker(
+                grad_start_col_btn_placeholder, parent=grad_start_col_btn_placeholder.parentWidget())
+            self.grad_start_button_clr_picker.setGradient(
+                gradient_starting_color,
+                get_middle_color(gradient_starting_color, gradient_ending_color),
+                True
+            )
+
+            layout.removeWidget(grad_start_col_btn_placeholder)
+            grad_start_col_btn_placeholder.deleteLater()  # delete placeholder
+            layout.insertWidget(index, self.grad_start_button_clr_picker)
+
+            self.grad_start_button_clr_picker.selectedColorSignal.connect(self.grad_start_btn_clicked)
+
+        if grad_end_col_btn_placeholder:
+            layout = grad_end_col_btn_placeholder.parentWidget().layout()
+            index = layout.indexOf(grad_end_col_btn_placeholder)
+
+            self.grad_end_button_clr_picker = ColorPicker(
+                grad_end_col_btn_placeholder, parent=grad_end_col_btn_placeholder.parentWidget())
+            self.grad_end_button_clr_picker.setGradient(
+                get_middle_color(gradient_starting_color, gradient_ending_color),
+                gradient_ending_color,
+                False
+            )
+
+            layout.removeWidget(grad_end_col_btn_placeholder)
+            grad_end_col_btn_placeholder.deleteLater()  # delete placeholder
+            layout.insertWidget(index, self.grad_end_button_clr_picker)
+
+            self.grad_end_button_clr_picker.selectedColorSignal.connect(self.grad_end_btn_clicked)
+
     def start_button_clicked(self):
-        global ant_stopped, COLORS
+        global ant_stopped
 
         if ant_stopped:
             reinit_ant()                    # reinitiates the ant
             grid_canvas.clearAllCells()     # clear the canvas also
-            COLORS.clear()
-            COLORS = color_gradient("#00FF00", "#0000FF", 20)
 
             if self.updateRulesInput():
                 #print("Rules: " + ANTS_RULES)
@@ -200,6 +251,8 @@ class MainWindow(QWidget):
                 rules_canvas.addRules(ANTS_RULES, COLORS) # show rules
                 if self.start_button:
                     self.start_button.setText("Stop")
+                if self.pause_button:
+                    self.pause_button.setEnabled(True)
 
         else:
             ant_stopped = True
@@ -209,6 +262,7 @@ class MainWindow(QWidget):
                 self.start_button.setText("Start")
             if self.pause_button:
                 self.pause_button.setText("Pause")
+                self.pause_button.setEnabled(False)
 
     def pause_button_clicked(self):
         if self.ant_loop_timer.isActive():
@@ -224,6 +278,49 @@ class MainWindow(QWidget):
         global ant_moves_per_tick
         speed = self.speed_combo_box.currentData()
         ant_moves_per_tick = speed
+
+    def grad_start_btn_clicked(self, selected_color: str):
+        global COLORS, gradient_starting_color
+        gradient_starting_color = selected_color
+
+        # update COLORS list and widgets
+        self.update_colors()
+        pass
+
+    def grad_end_btn_clicked(self, selected_color):
+        global gradient_ending_color
+        gradient_ending_color = selected_color
+
+        # update COLORS list and widgets
+        self.update_colors()
+        pass
+
+    def update_colors(self):
+        global COLORS, rules_canvas
+
+        # update gradient color of ColorPicker buttons
+        if self.grad_start_button_clr_picker:
+            self.grad_start_button_clr_picker.setGradient(
+                gradient_starting_color,
+                get_middle_color(gradient_starting_color, gradient_ending_color),
+                True
+            )
+
+        if self.grad_end_button_clr_picker:
+            self.grad_end_button_clr_picker.setGradient(
+                get_middle_color(gradient_starting_color, gradient_ending_color),
+                gradient_ending_color,
+                False
+            )
+
+        # update COLORS
+        COLORS.clear()
+        COLORS = color_gradient(gradient_starting_color, gradient_ending_color, 20)
+
+        # change colors of the rules and the grid
+        if rules_canvas and grid_canvas:
+            rules_canvas.addRules(ANTS_RULES, COLORS)
+            grid_canvas.setColors(COLORS)
 
     def updateRulesInput(self) -> bool:
         global ANTS_RULES
@@ -266,6 +363,16 @@ def color_gradient(color_start_hex: str, color_end_hex: str, steps: int) -> list
 
 def lin_interpolation(a, b, t):
     return int(a + (b - a) * t)
+
+def get_middle_color(color_start_hex: str, color_end_hex: str) -> str:
+    color_start = QColor(color_start_hex)
+    color_end = QColor(color_end_hex)
+
+    r = (color_start.red()   + color_end.red()) // 2
+    g = (color_start.green() + color_end.green()) // 2
+    b = (color_start.blue()  + color_end.blue()) // 2
+
+    return f"#{r:02X}{g:02X}{b:02X}"
 
 def ant_turn_right():
     global ant_direction
@@ -343,7 +450,7 @@ def ant_loop():
 
         # Draw the current square
         color_index = grid[ant_x_pos][ant_y_pos]
-        grid_canvas.addCell(ant_x_pos, ant_y_pos, COLORS[color_index])
+        grid_canvas.addCell(ant_x_pos, ant_y_pos, color_index)
 
         # Ant moves forward
         ant_move_forward()

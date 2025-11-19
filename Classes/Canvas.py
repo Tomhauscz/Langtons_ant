@@ -15,6 +15,12 @@ class GridCanvas(QWidget):
         self.Bg_color = _bg_color
         self.cell_size = 1
         self.cells = {}
+        self.cell_colors = [       # some initial colors
+            "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF",
+            "#00FFFF", "#A60000", "#FFA500", "#FF6262", "#202072",
+            "#3914AF", "#6A48D7", "#008500", "#00CC00", "#67E667",
+            "#A68900", "#FFD300", "#FFDE40", "#FF4C4C", "#4CFF4C"
+        ]
 
 
         if previous_placeholder and isinstance(previous_placeholder, QWidget):
@@ -29,9 +35,13 @@ class GridCanvas(QWidget):
     def setCellSize(self, cell_size: int):
         self.cell_size = cell_size
 
-    def addCell(self, x: int, y: int, color: str):
+    def setColors(self, colors: list[str]):
+        self.cell_colors = colors.copy()
+        self.update()
+
+    def addCell(self, x: int, y: int, color_idx: int):
         # adding or updating existing cell
-        self.cells[(x, y)] = color
+        self.cells[(x, y)] = color_idx
 
     def repaint_grid(self):
         self.update()
@@ -51,8 +61,9 @@ class GridCanvas(QWidget):
 
         painter.setPen(Qt.PenStyle.NoPen)
 
-        for (x, y), color in self.cells.items():
-            painter.setBrush(QBrush(QColor(color)))
+        for (x, y), color_idx in self.cells.items():
+            color = QColor(self.cell_colors[color_idx])
+            painter.setBrush(QBrush(color))
             painter.drawRect(QRect(x * self.cell_size, y * self.cell_size, self.cell_size, self.cell_size))
 
 class RulesCanvas(QWidget):
