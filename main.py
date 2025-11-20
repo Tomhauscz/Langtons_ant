@@ -178,9 +178,8 @@ class MainWindow(QWidget):
             updateGridSize()
             grid_canvas.setCellSize(resolution)
 
-            # update COLORS
-            COLORS.clear()
-            COLORS = color_gradient(gradient_starting_color, gradient_ending_color, 20)
+            # update COLORS list
+            update_colors_list(20)
             grid_canvas.setColors(COLORS)
 
             layout.removeWidget(grid_canvas_placeholder)
@@ -248,6 +247,11 @@ class MainWindow(QWidget):
                 ant_stopped = False
                 self.ant_loop_timer.start()
                 self.ant_repaint_grid_timer.start()
+
+                # update COLORS list
+                update_colors_list(len(ANTS_RULES))
+                grid_canvas.setColors(COLORS)
+
                 rules_canvas.addRules(ANTS_RULES, COLORS) # show rules
                 if self.start_button:
                     self.start_button.setText("Stop")
@@ -313,9 +317,8 @@ class MainWindow(QWidget):
                 False
             )
 
-        # update COLORS
-        COLORS.clear()
-        COLORS = color_gradient(gradient_starting_color, gradient_ending_color, 20)
+        # update COLORS list
+        update_colors_list(len(ANTS_RULES))
 
         # change colors of the rules and the grid
         if rules_canvas and grid_canvas:
@@ -373,6 +376,11 @@ def get_middle_color(color_start_hex: str, color_end_hex: str) -> str:
     b = (color_start.blue()  + color_end.blue()) // 2
 
     return f"#{r:02X}{g:02X}{b:02X}"
+
+def update_colors_list(gradient_steps: int):
+    global COLORS
+    COLORS.clear()
+    COLORS = color_gradient(gradient_starting_color, gradient_ending_color, gradient_steps)
 
 def ant_turn_right():
     global ant_direction
